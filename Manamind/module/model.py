@@ -61,7 +61,7 @@ class LLM:
         )
         self.think_token = 151668  # </think>
 
-    def generate(self, prompt, enable_thinking=True, max_new_tokens=32768):
+    def generate(self, prompt, enable_thinking=True, max_new_tokens=32768, temperature=0.7):
         messages = [{"role": "user", "content": prompt}]
         text = self.tokenizer.apply_chat_template(
             messages,
@@ -72,7 +72,9 @@ class LLM:
         model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
         generated_ids = self.model.generate(
             **model_inputs,
-            max_new_tokens=max_new_tokens
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            do_sample=True
         )
         output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
 
