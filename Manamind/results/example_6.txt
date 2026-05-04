@@ -1,0 +1,35 @@
+Loading embedding model...
+Loading LLM model...
+Initializing skill database from assets/skills.json -> assets/skills.db
+Retrieving skills for task: 'The agent is lost and needs to find the way back'
+
+Top 3 skills:
+
+1. Skill ID: flee_combat
+	Score: 0.5328
+	Name: Flee Combat
+	Category: combat
+	Success Rate: 0.78
+	Description: Disengages from an active combat encounter by running to a safe distance or zone boundary. Used as a recovery action when HP is critically low....
+
+2. Skill ID: explore_area
+	Score: 0.5118
+	Name: Explore Area
+	Category: navigation
+	Success Rate: 0.73
+	Description: Systematically explores an unknown region by moving in a coverage pattern, revealing the map and logging discovered points of interest....
+
+3. Skill ID: fast_travel
+	Score: 0.4927
+	Name: Fast Travel
+	Category: navigation
+	Success Rate: 0.92
+	Description: Initiates fast travel to a named waypoint or location using the map or travel network. Handles map opening, waypoint selection, and travel confirmation....
+
+Prompting LLM for skill selection...
+
+LLM Reasoning:
+The agent is lost and needs to find the way back, which implies the need to navigate or locate a known location. The "Explore Area" skill is designed for systematically exploring an unknown region, which could help the agent find their way back by revealing the map and logging points of interest. "Fast Travel" is for moving to a named waypoint, which might not be applicable if the agent doesn't know the exact location. "Flee Combat" is for escaping combat, which is not relevant here. Therefore, "Explore Area" is the most suitable skill.
+
+LLM Selected Skill:
+explore_area

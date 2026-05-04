@@ -4,10 +4,11 @@ A lightweight "skill retrieval" mechanism for a progression bot for QA testing o
 
 ## Setup
 
-Install dependencies:
+Create the conda environment:
 
 ```bash
-pip install -r requirements.txt
+conda env create -f env.yaml
+conda activate manamind
 ```
 
 (Optional) Configure GPU:

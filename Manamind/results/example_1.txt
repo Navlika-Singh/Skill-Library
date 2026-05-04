@@ -1,0 +1,137 @@
+Loading embedding model...
+Loading LLM model...
+Initializing skill database from assets/skills.json -> assets/skills.db
+Retrieving skills for task: 'The agent has low health and has no health potion, so needs to buy a health potion'
+
+Top 3 skills:
+
+1. Skill ID: flee_combat
+	Score: 0.5359
+	Name: Flee Combat
+	Category: combat
+	Success Rate: 0.78
+	Description: Disengages from an active combat encounter by running to a safe distance or zone boundary. Used as a recovery action when HP is critically low....
+
+2. Skill ID: use_consumable
+	Score: 0.4864
+	Name: Use Consumable
+	Category: inventory
+	Success Rate: 0.94
+	Description: Activates a consumable item (health potion, buff food, scroll) from the inventory or quick-use slot. Handles cooldown checks and effect confirmation....
+
+3. Skill ID: use_ability
+	Score: 0.4464
+	Name: Use Ability
+	Category: combat
+	Success Rate: 0.85
+	Description: Activates a named special ability, spell, or skill from the player's ability set. Manages resource costs (mana/cooldown) and targeting before activation....
+
+Prompting LLM for skill selection...
+
+LLM did not find a suitable skill for Top Categories 2 and Top Skills 3.
+
+Increasing the number of top categories and skills to consider...
+Retrieving skills for task: 'The agent has low health and has no health potion, so needs to buy a health potion'
+
+Top 5 skills:
+
+1. Skill ID: flee_combat
+	Score: 0.5359
+	Name: Flee Combat
+	Category: combat
+	Success Rate: 0.78
+	Description: Disengages from an active combat encounter by running to a safe distance or zone boundary. Used as a recovery action when HP is critically low....
+
+2. Skill ID: upgrade_equipment
+	Score: 0.5338
+	Name: Upgrade Equipment
+	Category: crafting
+	Success Rate: 0.74
+	Description: Uses a smithing, enhancement, or upgrade station to improve the stats or level of an equipped or inventoried item. Manages material cost and success probability....
+
+3. Skill ID: use_consumable
+	Score: 0.4864
+	Name: Use Consumable
+	Category: inventory
+	Success Rate: 0.94
+	Description: Activates a consumable item (health potion, buff food, scroll) from the inventory or quick-use slot. Handles cooldown checks and effect confirmation....
+
+4. Skill ID: use_ability
+	Score: 0.4464
+	Name: Use Ability
+	Category: combat
+	Success Rate: 0.85
+	Description: Activates a named special ability, spell, or skill from the player's ability set. Manages resource costs (mana/cooldown) and targeting before activation....
+
+5. Skill ID: block_attack
+	Score: 0.4338
+	Name: Block Attack
+	Category: combat
+	Success Rate: 0.82
+	Description: Raises a shield or weapon to block an incoming enemy attack, reducing or negating damage. Requires timing and correct guard stance....
+
+Prompting LLM for skill selection...
+
+LLM did not find a suitable skill for Top Categories 4 and Top Skills 5.
+
+Increasing the number of top categories and skills to consider...
+Retrieving skills for task: 'The agent has low health and has no health potion, so needs to buy a health potion'
+
+Top 7 skills:
+
+1. Skill ID: haggle_price
+	Score: 0.5361
+	Name: Haggle Price
+	Category: economy
+	Success Rate: 0.71
+	Description: Attempts to negotiate a lower price on a shop item using available dialogue or barter options. Uses persuasion or charisma-based UI flows if present....
+
+2. Skill ID: flee_combat
+	Score: 0.5359
+	Name: Flee Combat
+	Category: combat
+	Success Rate: 0.78
+	Description: Disengages from an active combat encounter by running to a safe distance or zone boundary. Used as a recovery action when HP is critically low....
+
+3. Skill ID: upgrade_equipment
+	Score: 0.5338
+	Name: Upgrade Equipment
+	Category: crafting
+	Success Rate: 0.74
+	Description: Uses a smithing, enhancement, or upgrade station to improve the stats or level of an equipped or inventoried item. Manages material cost and success probability....
+
+4. Skill ID: use_consumable
+	Score: 0.4864
+	Name: Use Consumable
+	Category: inventory
+	Success Rate: 0.94
+	Description: Activates a consumable item (health potion, buff food, scroll) from the inventory or quick-use slot. Handles cooldown checks and effect confirmation....
+
+5. Skill ID: buy_item
+	Score: 0.4786
+	Name: Buy Item
+	Category: economy
+	Success Rate: 0.94
+	Description: Navigates to a shop or merchant UI and purchases a specified item by name. Handles item search, quantity selection, and purchase confirmation....
+
+6. Skill ID: open_shop
+	Score: 0.4682
+	Name: Open Shop
+	Category: economy
+	Success Rate: 0.88
+	Description: Locates and interacts with a merchant or shop NPC to open the trading interface. Handles NPC targeting, dialogue initiation, and shop screen navigation....
+
+7. Skill ID: use_ability
+	Score: 0.4464
+	Name: Use Ability
+	Category: combat
+	Success Rate: 0.85
+	Description: Activates a named special ability, spell, or skill from the player's ability set. Manages resource costs (mana/cooldown) and targeting before activation....
+
+Prompting LLM for skill selection...
+
+LLM Reasoning:
+The agent needs to buy a health potion because they have low health and no health potion. The task involves purchasing an item, which requires navigating to a shop or merchant and purchasing the specified item. The "Buy Item" skill (ID: buy_item) is the most appropriate because it handles navigating to a shop, searching for the item, selecting the quantity, and confirming the purchase. Other skills like "Open Shop" are relevant but do not directly handle the purchase action. "Use Consumable" is not applicable since the agent does not have a health potion. Therefore, "Buy Item" is the best choice.
+
+LLM Selected Skill:
+buy_item

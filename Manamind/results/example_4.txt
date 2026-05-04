@@ -1,0 +1,35 @@
+Loading embedding model...
+Loading LLM model...
+Initializing skill database from assets/skills.json -> assets/skills.db
+Retrieving skills for task: 'The agent is in middle of a fight with the final boss and the agent's health is very low'
+
+Top 3 skills:
+
+1. Skill ID: flee_combat
+	Score: 0.5894
+	Name: Flee Combat
+	Category: combat
+	Success Rate: 0.78
+	Description: Disengages from an active combat encounter by running to a safe distance or zone boundary. Used as a recovery action when HP is critically low....
+
+2. Skill ID: block_attack
+	Score: 0.5269
+	Name: Block Attack
+	Category: combat
+	Success Rate: 0.82
+	Description: Raises a shield or weapon to block an incoming enemy attack, reducing or negating damage. Requires timing and correct guard stance....
+
+3. Skill ID: upgrade_equipment
+	Score: 0.4475
+	Name: Upgrade Equipment
+	Category: crafting
+	Success Rate: 0.74
+	Description: Uses a smithing, enhancement, or upgrade station to improve the stats or level of an equipped or inventoried item. Manages material cost and success probability....
+
+Prompting LLM for skill selection...
+
+LLM Reasoning:
+The agent is in the middle of a fight with the final boss and has very low health. The priority in this situation is to survive and recover. The "Flee Combat" skill (ID: flee_combat) is specifically designed for use when HP is critically low, allowing the agent to disengage from combat to recover. The other skills, "Block Attack" and "Upgrade Equipment," are not relevant in this immediate survival scenario. Therefore, the most appropriate skill is "Flee Combat."
+
+LLM Selected Skill:
+flee_combat

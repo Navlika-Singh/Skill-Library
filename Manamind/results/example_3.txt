@@ -1,0 +1,35 @@
+Loading embedding model...
+Loading LLM model...
+Initializing skill database from assets/skills.json -> assets/skills.db
+Retrieving skills for task: 'The agent is in middle of a fight with the final boss and the agent punches the boss, what should the agent do next?'
+
+Top 3 skills:
+
+1. Skill ID: block_attack
+	Score: 0.5557
+	Name: Block Attack
+	Category: combat
+	Success Rate: 0.82
+	Description: Raises a shield or weapon to block an incoming enemy attack, reducing or negating damage. Requires timing and correct guard stance....
+
+2. Skill ID: flee_combat
+	Score: 0.5473
+	Name: Flee Combat
+	Category: combat
+	Success Rate: 0.78
+	Description: Disengages from an active combat encounter by running to a safe distance or zone boundary. Used as a recovery action when HP is critically low....
+
+3. Skill ID: basic_attack
+	Score: 0.5162
+	Name: Basic Attack
+	Category: combat
+	Success Rate: 0.87
+	Description: Executes the primary attack action against a targeted enemy. Handles target lock-on, attack timing, and single-hit or combo initiation....
+
+Prompting LLM for skill selection...
+
+LLM Reasoning:
+The agent has just punched the final boss during a fight. The next logical action would be to continue attacking or defending against the boss's response. "Basic Attack" (ID: basic_attack) is the most appropriate skill here because it involves executing the primary attack action against a targeted enemy, which fits the context of continuing the fight after an attack. The other skills, "Block Attack" and "Flee Combat," are less relevant in this immediate context. "Block Attack" is for defending against an incoming attack, and "Flee Combat" is for escaping when critically low on HP, neither of which is indicated by the task description.
+
+LLM Selected Skill:
+basic_attack
