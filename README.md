@@ -42,6 +42,19 @@ python main.py \
 - The agent is fighting the final boss and has very low health  
 - The agent needs to buy something but has no money  
 
+## Example Outputs
+
+Logs for the example runs are available in the `results/` directory:
+
+```
+results/
+├── example_1.txt
+├── example_2.txt
+├── example_3.txt
+```
+
+Each file contains the full output of a corresponding run from `run.sh`, including retrieved skills, scores, and LLM-selected skill.
+
 ## Arguments
 
 - `--task`: Task description  
