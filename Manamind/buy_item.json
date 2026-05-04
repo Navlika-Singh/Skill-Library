@@ -1,0 +1,82 @@
+{
+  "skill_id": "buy_item",
+  "name": "Purchase Item from Shop",
+  "description": "Navigate to the in-game shop, store, or merchant interface, locate a specified item by name, and complete a purchase transaction to add it to the player's inventory.",
+  "category": "economy",
+  "version": "1.0.0",
+  "status": "active",
+  "preconditions": [
+    "Player is in a navigable state (not in combat or cutscene)",
+    "Shop or merchant UI is accessible from current state",
+    "Player currency is sufficient or item cost is unknown"
+  ],
+  "termination": {
+    "success": [
+      "Purchase confirmation event received",
+      "Target item appears in player inventory"
+    ]
+  },
+  "inputs": {
+    "observations": [
+      "Current screen frame (visual)",
+      "Recent UI event stream entries"
+    ],
+    "memory": [
+      "Recent action history",
+      "Known UI landmarks from current session"
+    ],
+    "goal_params": {
+      "item_name": {
+        "type": "str",
+        "required": true,
+        "example": "health potion"
+      },
+      "quantity": {
+        "type": "int",
+        "required": false,
+        "default": 1
+      }
+    }
+  },
+  "outputs": {
+    "state_changes": [
+      "Target item added to player inventory",
+      "Player currency reduced by item cost"
+    ],
+    "artifacts": [
+      "execution_log"
+    ]
+  },
+  "failure_modes": [
+    {
+      "mode": "shop_button_not_found",
+      "severity": "P2",
+      "recovery": "Scan full frame for shop-related UI elements. Retry with broader search"
+    },
+    {
+      "mode": "item_not_in_stock",
+      "severity": "P3",
+      "recovery": "Emit failure with reason=out_of_stock. Do not retry"
+    },
+    {
+      "mode": "purchase_dialog_not_appeared",
+      "severity": "P2",
+      "recovery": "Re-click item. If still absent escape to known state and retry from top"
+    },
+    {
+      "mode": "execution_timeout",
+      "severity": "P1",
+      "recovery": "Abort skill. Escape to known state. Emit performance anomaly log"
+    },
+    {
+      "mode": "duration_anomaly",
+      "severity": "P2",
+      "recovery": "Flag for review. Continue execution but log deviation from expected duration"
+    }
+  ],
+  "max_steps": 20,
+  "timeout_ms": 15000,
+  "games_validated": ["game_a"],
+  "success_rate": 0.91,
+  "last_validated": "2026-04-28"
+}
