@@ -1,0 +1,2006 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-05-03",
+  "categories": [
+    {
+      "category_id": "economy",
+      "name": "Economy",
+      "description": "Skills related to buying, trading, purchasing, selling, and managing in-game currency and shop interactions."
+    },
+    {
+      "category_id": "combat",
+      "name": "Combat",
+      "description": "Skills for engaging enemies, defending, using abilities, and managing combat flow."
+    },
+    {
+      "category_id": "navigation",
+      "name": "Navigation",
+      "description": "Skills for moving through the game world, using maps, fast travel, and exploring areas."
+    },
+    {
+      "category_id": "inventory",
+      "name": "Inventory",
+      "description": "Skills for managing items, equipment, consumables, and the player's inventory state."
+    },
+    {
+      "category_id": "crafting",
+      "name": "Crafting",
+      "description": "Skills for creating items, gathering materials, upgrading equipment, and using crafting systems."
+    }
+  ],
+  "skills": [
+    {
+      "skill_id": "buy_item",
+      "name": "Buy Item",
+      "category": "economy",
+      "description": "Navigates to a shop or merchant UI and purchases a specified item by name. Handles item search, quantity selection, and purchase confirmation.",
+      "version": "1.2.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "shop_is_open", "description": "A shop or merchant dialog must be active on screen" },
+        { "condition": "sufficient_gold", "description": "Player gold must be >= item cost" },
+        { "condition": "inventory_not_full", "description": "Player inventory must have at least one free slot" }
+      ],
+      "termination": {
+        "success": [
+          "Item appears in player inventory",
+          "Gold balance decreases by item cost",
+          "Purchase confirmation message observed"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "shop_ui_state", "type": "screenshot_region", "description": "Current state of the shop/merchant UI" },
+          { "name": "item_list", "type": "text_list", "description": "Visible list of items available for purchase" },
+          { "name": "player_gold", "type": "integer", "description": "Current gold balance shown in UI" }
+        ],
+        "memory": [
+          "last_visited_shop_type",
+          "previously_purchased_items",
+          "known_item_locations_in_shop_ui"
+        ],
+        "goal_params": {
+          "item_name": "str",
+          "quantity": "int",
+          "max_price": "float"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "inventory[item_name] += quantity",
+          "player.gold -= total_cost"
+        ],
+        "artifacts": [
+          "purchase_log: {item, quantity, cost, timestamp}",
+          "shop_name_observed",
+          "flag: purchase_success | purchase_failed"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "item_not_found",
+          "severity": "P2",
+          "recovery": "Scroll through shop list and retry search; if still missing, log and abort"
+        },
+        {
+          "mode": "insufficient_gold",
+          "severity": "P2",
+          "recovery": "Abort purchase and emit low_gold flag for parent task to handle"
+        },
+        {
+          "mode": "inventory_full",
+          "severity": "P2",
+          "recovery": "Trigger drop_item skill for lowest-value item, then retry"
+        },
+        {
+          "mode": "shop_ui_closed_unexpectedly",
+          "severity": "P1",
+          "recovery": "Escape to known state and re-invoke open_shop skill"
+        },
+        {
+          "mode": "confirmation_dialog_not_found",
+          "severity": "P3",
+          "recovery": "Wait 500ms and retry click on confirm button up to 3 times"
+        }
+      ],
+      "max_steps": 20,
+      "timeout_ms": 8000,
+      "games_validated": ["elden_ring", "stardew_valley", "baldurs_gate_3"],
+      "success_rate": 0.94,
+      "last_validated": "2026-04-15"
+    },
+    {
+      "skill_id": "sell_item",
+      "name": "Sell Item",
+      "category": "economy",
+      "description": "Locates a specified item in the player inventory within a shop context and sells it for gold. Handles quantity negotiation and sell confirmation.",
+      "version": "1.1.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "shop_is_open", "description": "A shop or merchant dialog must be active and in sell mode" },
+        { "condition": "item_in_inventory", "description": "The target item must be present in player inventory" }
+      ],
+      "termination": {
+        "success": [
+          "Item removed from player inventory",
+          "Gold balance increases by sale amount",
+          "Sale confirmation message observed"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "inventory_ui_state", "type": "screenshot_region", "description": "Current inventory panel within the shop sell screen" },
+          { "name": "player_gold", "type": "integer", "description": "Current gold balance" },
+          { "name": "item_sell_price", "type": "float", "description": "Listed sell price of the target item" }
+        ],
+        "memory": [
+          "items_marked_as_junk",
+          "known_high_value_items",
+          "last_sell_screen_layout"
+        ],
+        "goal_params": {
+          "item_name": "str",
+          "quantity": "int",
+          "min_acceptable_price": "float"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "inventory[item_name] -= quantity",
+          "player.gold += sale_total"
+        ],
+        "artifacts": [
+          "sell_log: {item, quantity, price_per_unit, timestamp}",
+          "flag: sell_success | sell_aborted_low_price"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "item_not_in_inventory",
+          "severity": "P2",
+          "recovery": "Abort and emit missing_item flag; do not retry"
+        },
+        {
+          "mode": "sell_mode_not_active",
+          "severity": "P2",
+          "recovery": "Look for sell tab in shop UI and click it; retry up to 2 times"
+        },
+        {
+          "mode": "price_below_minimum",
+          "severity": "P3",
+          "recovery": "Abort sale and emit low_price_warning artifact"
+        },
+        {
+          "mode": "confirmation_dialog_not_found",
+          "severity": "P3",
+          "recovery": "Wait 500ms and retry confirm click up to 3 times"
+        },
+        {
+          "mode": "shop_ui_closed_unexpectedly",
+          "severity": "P1",
+          "recovery": "Escape to known state and re-invoke open_shop skill"
+        }
+      ],
+      "max_steps": 20,
+      "timeout_ms": 8000,
+      "games_validated": ["elden_ring", "baldurs_gate_3", "witcher_3"],
+      "success_rate": 0.91,
+      "last_validated": "2026-04-10"
+    },
+    {
+      "skill_id": "haggle_price",
+      "name": "Haggle Price",
+      "category": "economy",
+      "description": "Attempts to negotiate a lower price on a shop item using available dialogue or barter options. Uses persuasion or charisma-based UI flows if present.",
+      "version": "0.8.0",
+      "status": "candidate",
+      "preconditions": [
+        { "condition": "shop_is_open", "description": "Merchant dialog is active" },
+        { "condition": "haggle_option_available", "description": "A bargain/haggle button or dialogue node is visible" }
+      ],
+      "termination": {
+        "success": [
+          "Item price visibly reduced in UI",
+          "Dialogue confirms a deal was struck"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "dialogue_options", "type": "text_list", "description": "Visible merchant dialogue choices" },
+          { "name": "item_base_price", "type": "float", "description": "Original listed price before haggling" },
+          { "name": "player_charisma_stat", "type": "integer", "description": "Player charisma/speech stat if visible" }
+        ],
+        "memory": [
+          "merchant_disposition",
+          "previous_haggle_outcomes",
+          "player_reputation_score"
+        ],
+        "goal_params": {
+          "item_name": "str",
+          "target_discount_pct": "float"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "item.price *= (1 - discount_achieved)"
+        ],
+        "artifacts": [
+          "haggle_log: {item, original_price, final_price, outcome}",
+          "flag: haggle_success | haggle_failed | haggle_not_available"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "haggle_option_not_found",
+          "severity": "P3",
+          "recovery": "Skip haggle, proceed with buy_item at base price"
+        },
+        {
+          "mode": "merchant_refuses",
+          "severity": "P3",
+          "recovery": "Accept base price or abort; log refusal for reputation tracking"
+        },
+        {
+          "mode": "dialogue_tree_loop",
+          "severity": "P2",
+          "recovery": "Force escape from dialogue and flag for human review"
+        },
+        {
+          "mode": "stat_check_failed",
+          "severity": "P3",
+          "recovery": "Log failed check and fall back to base price purchase"
+        },
+        {
+          "mode": "unexpected_dialogue_state",
+          "severity": "P2",
+          "recovery": "Escape to known state via ESC key sequence"
+        }
+      ],
+      "max_steps": 15,
+      "timeout_ms": 12000,
+      "games_validated": ["baldurs_gate_3"],
+      "success_rate": 0.71,
+      "last_validated": "2026-03-28"
+    },
+    {
+      "skill_id": "check_balance",
+      "name": "Check Gold Balance",
+      "category": "economy",
+      "description": "Reads and returns the player's current currency balance from the HUD or inventory screen. Used as a precondition check before purchase actions.",
+      "version": "1.0.1",
+      "status": "active",
+      "preconditions": [
+        { "condition": "hud_visible", "description": "HUD or inventory screen showing currency is accessible" }
+      ],
+      "termination": {
+        "success": [
+          "Gold value successfully parsed from UI",
+          "Balance stored in working memory"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "hud_currency_region", "type": "screenshot_region", "description": "Region of HUD where currency is displayed" },
+          { "name": "inventory_currency_field", "type": "text", "description": "Currency field if inventory is open" }
+        ],
+        "memory": [
+          "last_known_gold_balance",
+          "currency_ui_location_hint"
+        ],
+        "goal_params": {
+          "currency_type": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [],
+        "artifacts": [
+          "current_balance: {currency_type, amount, timestamp}",
+          "flag: balance_read_success | balance_read_failed"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "currency_not_visible",
+          "severity": "P2",
+          "recovery": "Open inventory screen and retry OCR on currency field"
+        },
+        {
+          "mode": "ocr_parse_failure",
+          "severity": "P2",
+          "recovery": "Retry OCR up to 3 times with region adjustment"
+        },
+        {
+          "mode": "multiple_currencies_found",
+          "severity": "P3",
+          "recovery": "Use goal_params.currency_type to disambiguate; log ambiguity"
+        },
+        {
+          "mode": "hud_obscured",
+          "severity": "P3",
+          "recovery": "Move camera or close blocking menu and retry"
+        },
+        {
+          "mode": "ui_layout_changed",
+          "severity": "P2",
+          "recovery": "Reset known UI layout hints and re-scan full screen"
+        }
+      ],
+      "max_steps": 8,
+      "timeout_ms": 3000,
+      "games_validated": ["elden_ring", "stardew_valley", "witcher_3", "baldurs_gate_3"],
+      "success_rate": 0.97,
+      "last_validated": "2026-04-20"
+    },
+    {
+      "skill_id": "open_shop",
+      "name": "Open Shop",
+      "category": "economy",
+      "description": "Locates and interacts with a merchant or shop NPC to open the trading interface. Handles NPC targeting, dialogue initiation, and shop screen navigation.",
+      "version": "1.3.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "merchant_nearby", "description": "A merchant NPC or shop object is within interaction range" },
+        { "condition": "not_in_combat", "description": "Player is not currently in a combat state" }
+      ],
+      "termination": {
+        "success": [
+          "Shop UI is visible and interactive",
+          "Item list rendered on screen"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "nearby_npc_list", "type": "text_list", "description": "Names/labels of NPCs detected near the player" },
+          { "name": "interact_prompt", "type": "screenshot_region", "description": "On-screen interact prompt if merchant is targeted" },
+          { "name": "minimap_state", "type": "screenshot_region", "description": "Minimap showing nearby merchant icons" }
+        ],
+        "memory": [
+          "known_merchant_locations",
+          "last_interacted_merchant",
+          "shop_open_keybind"
+        ],
+        "goal_params": {
+          "merchant_name": "str",
+          "shop_type": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "ui.shop_open = true"
+        ],
+        "artifacts": [
+          "shop_opened_log: {merchant_name, shop_type, timestamp}",
+          "flag: shop_open_success | merchant_not_found"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "merchant_not_found",
+          "severity": "P2",
+          "recovery": "Navigate to last known merchant location and retry"
+        },
+        {
+          "mode": "interact_prompt_missing",
+          "severity": "P3",
+          "recovery": "Move closer to merchant and re-check interact prompt"
+        },
+        {
+          "mode": "wrong_dialogue_opened",
+          "severity": "P2",
+          "recovery": "Escape dialogue and re-target merchant; look for trade option explicitly"
+        },
+        {
+          "mode": "merchant_hostile",
+          "severity": "P1",
+          "recovery": "Disengage and abort; emit hostile_merchant flag"
+        },
+        {
+          "mode": "shop_type_mismatch",
+          "severity": "P3",
+          "recovery": "Log mismatch and continue with available shop or seek correct merchant"
+        }
+      ],
+      "max_steps": 25,
+      "timeout_ms": 10000,
+      "games_validated": ["witcher_3", "elden_ring", "stardew_valley"],
+      "success_rate": 0.88,
+      "last_validated": "2026-04-18"
+    },
+    {
+      "skill_id": "browse_shop_inventory",
+      "name": "Browse Shop Inventory",
+      "category": "economy",
+      "description": "Scrolls through and reads all items available in an open shop, returning a structured list of items, quantities, and prices for downstream decision-making.",
+      "version": "1.0.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "shop_is_open", "description": "Shop UI must already be open" }
+      ],
+      "termination": {
+        "success": [
+          "All visible shop items read and catalogued",
+          "End of item list reached or scroll limit hit"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "shop_item_list_region", "type": "screenshot_region", "description": "Scrollable list of items in shop" },
+          { "name": "scroll_position_indicator", "type": "text", "description": "Scroll bar or page indicator in shop" }
+        ],
+        "memory": [
+          "previously_catalogued_shops",
+          "item_filter_preferences"
+        ],
+        "goal_params": {
+          "filter_category": "str",
+          "max_price": "float"
+        }
+      },
+      "outputs": {
+        "state_changes": [],
+        "artifacts": [
+          "shop_catalogue: [{item_name, price, quantity, category}]",
+          "flag: catalogue_complete | catalogue_partial"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "scroll_not_working",
+          "severity": "P3",
+          "recovery": "Try alternative scroll method (keyboard arrows vs mouse wheel)"
+        },
+        {
+          "mode": "item_text_unreadable",
+          "severity": "P3",
+          "recovery": "Zoom into item region and retry OCR"
+        },
+        {
+          "mode": "shop_closed_during_browse",
+          "severity": "P1",
+          "recovery": "Escape to known state and re-invoke open_shop"
+        },
+        {
+          "mode": "infinite_scroll_detected",
+          "severity": "P2",
+          "recovery": "Cap scroll at max_steps and emit partial_catalogue flag"
+        },
+        {
+          "mode": "empty_shop_detected",
+          "severity": "P3",
+          "recovery": "Emit empty_shop artifact and abort gracefully"
+        }
+      ],
+      "max_steps": 40,
+      "timeout_ms": 15000,
+      "games_validated": ["witcher_3", "baldurs_gate_3"],
+      "success_rate": 0.89,
+      "last_validated": "2026-04-01"
+    },
+
+    {
+      "skill_id": "basic_attack",
+      "name": "Basic Attack",
+      "category": "combat",
+      "description": "Executes the primary attack action against a targeted enemy. Handles target lock-on, attack timing, and single-hit or combo initiation.",
+      "version": "2.0.1",
+      "status": "active",
+      "preconditions": [
+        { "condition": "in_combat", "description": "An enemy is present and combat is active" },
+        { "condition": "enemy_targeted", "description": "At least one enemy is within attack range and targeted" },
+        { "condition": "player_alive", "description": "Player HP > 0" }
+      ],
+      "termination": {
+        "success": [
+          "Attack animation completes",
+          "Enemy HP decreases",
+          "Hit confirmation visual or audio cue observed"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "enemy_position", "type": "bounding_box", "description": "Screen position and bounding box of targeted enemy" },
+          { "name": "player_stamina", "type": "float", "description": "Current stamina/action points" },
+          { "name": "weapon_in_hand", "type": "text", "description": "Currently equipped weapon name" }
+        ],
+        "memory": [
+          "enemy_attack_patterns",
+          "last_attack_outcome",
+          "combo_state"
+        ],
+        "goal_params": {
+          "target_enemy_id": "str",
+          "attack_type": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "enemy.hp -= damage_dealt",
+          "player.stamina -= stamina_cost"
+        ],
+        "artifacts": [
+          "combat_log: {action, target, damage, timestamp}",
+          "flag: hit | miss | critical_hit | blocked"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "attack_missed",
+          "severity": "P3",
+          "recovery": "Reposition and retry; check if enemy is moving erratically"
+        },
+        {
+          "mode": "out_of_stamina",
+          "severity": "P2",
+          "recovery": "Wait for stamina regen or dodge to safe distance"
+        },
+        {
+          "mode": "target_lost",
+          "severity": "P2",
+          "recovery": "Re-acquire target using target_enemy skill"
+        },
+        {
+          "mode": "attack_blocked",
+          "severity": "P3",
+          "recovery": "Switch attack type or wait for enemy guard to drop"
+        },
+        {
+          "mode": "animation_interrupted",
+          "severity": "P2",
+          "recovery": "Reset combat state and re-evaluate action"
+        }
+      ],
+      "max_steps": 5,
+      "timeout_ms": 2000,
+      "games_validated": ["elden_ring", "witcher_3", "hades"],
+      "success_rate": 0.87,
+      "last_validated": "2026-04-22"
+    },
+    {
+      "skill_id": "dodge_roll",
+      "name": "Dodge Roll",
+      "category": "combat",
+      "description": "Performs an evasive dodge or roll in a specified direction to avoid incoming enemy attacks. Relies on attack timing cues and i-frame windows.",
+      "version": "1.4.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "in_combat", "description": "Combat is active" },
+        { "condition": "player_alive", "description": "Player HP > 0" },
+        { "condition": "stamina_above_threshold", "description": "Stamina >= dodge cost" }
+      ],
+      "termination": {
+        "success": [
+          "Dodge animation completes without taking damage",
+          "Player position changed in direction of dodge"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "enemy_attack_animation", "type": "screenshot_region", "description": "Enemy wind-up or attack telegraph visual" },
+          { "name": "player_stamina", "type": "float", "description": "Current stamina value" },
+          { "name": "player_position", "type": "coordinates", "description": "Current player world position" }
+        ],
+        "memory": [
+          "enemy_attack_timing_patterns",
+          "dodge_direction_heuristics",
+          "recent_damage_taken"
+        ],
+        "goal_params": {
+          "dodge_direction": "str",
+          "trigger_on_attack_type": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "player.position += dodge_vector",
+          "player.stamina -= dodge_cost"
+        ],
+        "artifacts": [
+          "dodge_log: {direction, triggered_by, outcome, timestamp}",
+          "flag: dodge_success | dodge_failed | damage_taken_during_dodge"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "dodge_too_early",
+          "severity": "P3",
+          "recovery": "Log timing offset and adjust trigger threshold for next attempt"
+        },
+        {
+          "mode": "dodge_too_late",
+          "severity": "P2",
+          "recovery": "Log timing offset; if HP critical, trigger flee_combat"
+        },
+        {
+          "mode": "out_of_stamina",
+          "severity": "P1",
+          "recovery": "Block instead if available, or flee_combat immediately"
+        },
+        {
+          "mode": "dodge_into_wall",
+          "severity": "P2",
+          "recovery": "Update dodge direction heuristic; try perpendicular direction"
+        },
+        {
+          "mode": "attack_not_telegraphed",
+          "severity": "P3",
+          "recovery": "Fall back to block_attack skill or take damage and continue"
+        }
+      ],
+      "max_steps": 3,
+      "timeout_ms": 1500,
+      "games_validated": ["elden_ring", "hades", "dark_souls_3"],
+      "success_rate": 0.81,
+      "last_validated": "2026-04-22"
+    },
+    {
+      "skill_id": "use_ability",
+      "name": "Use Ability",
+      "category": "combat",
+      "description": "Activates a named special ability, spell, or skill from the player's ability set. Manages resource costs (mana/cooldown) and targeting before activation.",
+      "version": "1.1.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "ability_available", "description": "Target ability is not on cooldown" },
+        { "condition": "sufficient_mana_or_resource", "description": "Player has enough resource to cast the ability" },
+        { "condition": "in_combat_or_range", "description": "Valid target is in ability range" }
+      ],
+      "termination": {
+        "success": [
+          "Ability activation animation plays",
+          "Resource cost deducted from player",
+          "Ability effect observed on target"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "ability_bar_state", "type": "screenshot_region", "description": "Current state of all abilities including cooldown indicators" },
+          { "name": "player_mana", "type": "float", "description": "Current mana/resource level" },
+          { "name": "enemy_state", "type": "text", "description": "Enemy health and status effects" }
+        ],
+        "memory": [
+          "ability_keybind_map",
+          "last_ability_used",
+          "cooldown_timers"
+        ],
+        "goal_params": {
+          "ability_name": "str",
+          "target_type": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "player.mana -= ability_cost",
+          "ability.cooldown_started = true",
+          "target.status_effects += ability_effects"
+        ],
+        "artifacts": [
+          "ability_log: {name, target, resource_cost, cooldown, outcome}",
+          "flag: ability_success | ability_failed | on_cooldown | insufficient_resource"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "ability_on_cooldown",
+          "severity": "P3",
+          "recovery": "Select next available ability or fall back to basic_attack"
+        },
+        {
+          "mode": "insufficient_mana",
+          "severity": "P2",
+          "recovery": "Use mana potion if available or abort and wait for regen"
+        },
+        {
+          "mode": "target_out_of_range",
+          "severity": "P2",
+          "recovery": "Move closer and retry ability activation"
+        },
+        {
+          "mode": "ability_keybind_not_found",
+          "severity": "P1",
+          "recovery": "Open settings to re-read keybinds and update ability_keybind_map in memory"
+        },
+        {
+          "mode": "ability_interrupted",
+          "severity": "P2",
+          "recovery": "Dodge or reposition and re-cast"
+        }
+      ],
+      "max_steps": 8,
+      "timeout_ms": 4000,
+      "games_validated": ["baldurs_gate_3", "hades", "witcher_3"],
+      "success_rate": 0.85,
+      "last_validated": "2026-04-15"
+    },
+    {
+      "skill_id": "flee_combat",
+      "name": "Flee Combat",
+      "category": "combat",
+      "description": "Disengages from an active combat encounter by running to a safe distance or zone boundary. Used as a recovery action when HP is critically low.",
+      "version": "1.0.2",
+      "status": "active",
+      "preconditions": [
+        { "condition": "in_combat", "description": "Combat is currently active" },
+        { "condition": "flee_path_exists", "description": "An unobstructed path away from enemies exists" }
+      ],
+      "termination": {
+        "success": [
+          "Combat music stops or out-of-combat UI state restored",
+          "No enemies within aggro range",
+          "Player reaches safe zone"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "enemy_positions", "type": "bounding_box_list", "description": "Positions of all active enemies on screen" },
+          { "name": "player_hp", "type": "float", "description": "Current player HP" },
+          { "name": "minimap_state", "type": "screenshot_region", "description": "Minimap showing enemy positions and safe zones" }
+        ],
+        "memory": [
+          "nearest_safe_zone_coordinates",
+          "enemy_aggro_range_estimates",
+          "flee_path_history"
+        ],
+        "goal_params": {
+          "flee_direction": "str",
+          "target_safe_zone": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "combat_state = false",
+          "player.position = safe_location"
+        ],
+        "artifacts": [
+          "flee_log: {trigger_hp, enemies_fled_from, outcome, timestamp}",
+          "flag: flee_success | flee_failed | player_died_while_fleeing"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "path_blocked",
+          "severity": "P1",
+          "recovery": "Try alternate flee direction; if all blocked, switch to block_attack to buy time"
+        },
+        {
+          "mode": "enemy_faster_than_player",
+          "severity": "P1",
+          "recovery": "Use speed-boosting consumable if available; otherwise use crowd control ability"
+        },
+        {
+          "mode": "safe_zone_not_found",
+          "severity": "P2",
+          "recovery": "Move to map boundary and wait for combat timeout if supported"
+        },
+        {
+          "mode": "player_died_during_flee",
+          "severity": "P1",
+          "recovery": "Trigger death handling routine; emit player_death flag"
+        },
+        {
+          "mode": "combat_lock_prevents_flee",
+          "severity": "P2",
+          "recovery": "Look for disengage ability or wait for enemy attack window to pass"
+        }
+      ],
+      "max_steps": 50,
+      "timeout_ms": 20000,
+      "games_validated": ["elden_ring", "witcher_3", "hades"],
+      "success_rate": 0.78,
+      "last_validated": "2026-04-10"
+    },
+    {
+      "skill_id": "block_attack",
+      "name": "Block Attack",
+      "category": "combat",
+      "description": "Raises a shield or weapon to block an incoming enemy attack, reducing or negating damage. Requires timing and correct guard stance.",
+      "version": "1.2.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "in_combat", "description": "Combat is active" },
+        { "condition": "shield_or_guard_available", "description": "Player has a blocking tool equipped" },
+        { "condition": "stamina_above_threshold", "description": "Stamina >= block cost" }
+      ],
+      "termination": {
+        "success": [
+          "Block animation plays on enemy attack",
+          "Damage taken is 0 or reduced",
+          "Block/parry confirmation effect observed"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "enemy_attack_animation", "type": "screenshot_region", "description": "Enemy wind-up animation frame" },
+          { "name": "player_stamina", "type": "float", "description": "Current stamina" },
+          { "name": "player_guard_meter", "type": "float", "description": "Guard/stability meter if present" }
+        ],
+        "memory": [
+          "enemy_attack_timing_patterns",
+          "shield_block_effectiveness",
+          "last_block_outcome"
+        ],
+        "goal_params": {
+          "block_type": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "player.damage_taken = 0 or reduced",
+          "player.stamina -= block_cost",
+          "player.guard_meter -= impact_value"
+        ],
+        "artifacts": [
+          "block_log: {attack_type, damage_negated, guard_cost, outcome}",
+          "flag: block_success | block_broken | parry_success"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "guard_broken",
+          "severity": "P1",
+          "recovery": "Immediately dodge backward and wait for guard to recover"
+        },
+        {
+          "mode": "block_timed_incorrectly",
+          "severity": "P2",
+          "recovery": "Update timing model and fall back to dodge_roll next attempt"
+        },
+        {
+          "mode": "unblockable_attack",
+          "severity": "P2",
+          "recovery": "Switch to dodge_roll for this attack type; update attack classification"
+        },
+        {
+          "mode": "out_of_stamina",
+          "severity": "P1",
+          "recovery": "Lower guard and immediately flee or use emergency consumable"
+        },
+        {
+          "mode": "wrong_direction_blocked",
+          "severity": "P3",
+          "recovery": "Rotate to face attacker and retry"
+        }
+      ],
+      "max_steps": 4,
+      "timeout_ms": 1500,
+      "games_validated": ["elden_ring", "dark_souls_3"],
+      "success_rate": 0.82,
+      "last_validated": "2026-04-22"
+    },
+
+    {
+      "skill_id": "open_map",
+      "name": "Open Map",
+      "category": "navigation",
+      "description": "Opens the in-game world map or minimap view using the mapped keybind or menu navigation. Confirms map is rendered before returning.",
+      "version": "1.1.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "not_in_combat", "description": "Player is not in an active combat state (some games disallow map during combat)" },
+        { "condition": "map_unlocked", "description": "Map feature has been unlocked in the game's progression" }
+      ],
+      "termination": {
+        "success": [
+          "Map UI overlay is fully rendered on screen",
+          "Player position marker visible on map"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "screen_state", "type": "screenshot_region", "description": "Full screen to detect if map is already open" },
+          { "name": "hud_elements", "type": "text_list", "description": "Currently visible HUD elements" }
+        ],
+        "memory": [
+          "map_keybind",
+          "map_last_opened_zoom_level",
+          "known_map_ui_layout"
+        ],
+        "goal_params": {
+          "map_type": "str",
+          "zoom_level": "float"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "ui.map_open = true"
+        ],
+        "artifacts": [
+          "map_open_log: {map_type, timestamp}",
+          "flag: map_open_success | map_unavailable"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "keybind_unresponsive",
+          "severity": "P2",
+          "recovery": "Try accessing map via pause menu navigation instead"
+        },
+        {
+          "mode": "map_not_unlocked",
+          "severity": "P2",
+          "recovery": "Abort and emit map_locked flag; note in progression state"
+        },
+        {
+          "mode": "map_ui_partially_rendered",
+          "severity": "P3",
+          "recovery": "Wait 500ms and re-check; retry up to 3 times"
+        },
+        {
+          "mode": "wrong_menu_opened",
+          "severity": "P3",
+          "recovery": "Close current menu and retry with correct keybind"
+        },
+        {
+          "mode": "map_disabled_in_combat",
+          "severity": "P2",
+          "recovery": "Flee combat first, then retry open_map"
+        }
+      ],
+      "max_steps": 10,
+      "timeout_ms": 4000,
+      "games_validated": ["elden_ring", "witcher_3", "baldurs_gate_3", "stardew_valley"],
+      "success_rate": 0.96,
+      "last_validated": "2026-04-20"
+    },
+    {
+      "skill_id": "fast_travel",
+      "name": "Fast Travel",
+      "category": "navigation",
+      "description": "Initiates fast travel to a named waypoint or location using the map or travel network. Handles map opening, waypoint selection, and travel confirmation.",
+      "version": "1.0.3",
+      "status": "active",
+      "preconditions": [
+        { "condition": "fast_travel_unlocked", "description": "Fast travel feature is available" },
+        { "condition": "destination_discovered", "description": "Target waypoint has been previously visited" },
+        { "condition": "not_in_combat", "description": "Player is not in combat" }
+      ],
+      "termination": {
+        "success": [
+          "Loading screen observed",
+          "Player spawns at target location",
+          "Location name confirmed on screen"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "map_ui_state", "type": "screenshot_region", "description": "Current state of the map screen" },
+          { "name": "waypoint_list", "type": "text_list", "description": "List of available fast travel destinations" }
+        ],
+        "memory": [
+          "discovered_waypoints",
+          "last_fast_travel_destination",
+          "waypoint_ui_coordinates"
+        ],
+        "goal_params": {
+          "destination_name": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "player.position = destination_coordinates"
+        ],
+        "artifacts": [
+          "travel_log: {origin, destination, timestamp}",
+          "flag: travel_success | destination_not_found | travel_unavailable"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "destination_not_discovered",
+          "severity": "P2",
+          "recovery": "Abort and use navigate_to_area skill to reach destination on foot"
+        },
+        {
+          "mode": "fast_travel_restricted",
+          "severity": "P2",
+          "recovery": "Check for travel restriction (weather, quest state) and emit restriction_flag"
+        },
+        {
+          "mode": "waypoint_not_found_in_ui",
+          "severity": "P2",
+          "recovery": "Search map via text search if available; scroll waypoint list"
+        },
+        {
+          "mode": "loading_screen_timeout",
+          "severity": "P1",
+          "recovery": "Wait additional 10s; if no response, flag for human review"
+        },
+        {
+          "mode": "spawned_at_wrong_location",
+          "severity": "P2",
+          "recovery": "Re-read location name and re-trigger fast_travel with corrected destination"
+        }
+      ],
+      "max_steps": 20,
+      "timeout_ms": 30000,
+      "games_validated": ["elden_ring", "witcher_3"],
+      "success_rate": 0.92,
+      "last_validated": "2026-04-18"
+    },
+    {
+      "skill_id": "explore_area",
+      "name": "Explore Area",
+      "category": "navigation",
+      "description": "Systematically explores an unknown region by moving in a coverage pattern, revealing the map and logging discovered points of interest.",
+      "version": "0.9.1",
+      "status": "candidate",
+      "preconditions": [
+        { "condition": "in_explorable_zone", "description": "Player is in an open-world or explorable area" },
+        { "condition": "not_in_combat", "description": "No active combat" }
+      ],
+      "termination": {
+        "success": [
+          "Area fog of war fully cleared on minimap",
+          "All discoverable POIs within range logged"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "minimap_fog_state", "type": "screenshot_region", "description": "Unexplored (fog) regions on the minimap" },
+          { "name": "poi_markers", "type": "bounding_box_list", "description": "Points of interest visible on map or screen" },
+          { "name": "terrain_passability", "type": "screenshot_region", "description": "Passable vs impassable terrain ahead" }
+        ],
+        "memory": [
+          "visited_coordinates_grid",
+          "discovered_poi_list",
+          "exploration_coverage_map"
+        ],
+        "goal_params": {
+          "area_name": "str",
+          "coverage_target_pct": "float"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "map.fog_cleared += explored_cells"
+        ],
+        "artifacts": [
+          "exploration_log: {area, cells_cleared, pois_found, timestamp}",
+          "discovered_pois: [{name, type, coordinates}]",
+          "flag: area_fully_explored | exploration_partial | blocked_by_terrain"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "terrain_impassable",
+          "severity": "P3",
+          "recovery": "Mark cell as blocked and route around; update passability map"
+        },
+        {
+          "mode": "combat_interrupted_exploration",
+          "severity": "P2",
+          "recovery": "Resolve combat then resume exploration from last position"
+        },
+        {
+          "mode": "minimap_not_available",
+          "severity": "P2",
+          "recovery": "Use screen-space landmark tracking as fallback coverage heuristic"
+        },
+        {
+          "mode": "stuck_in_geometry",
+          "severity": "P1",
+          "recovery": "Execute unstick routine: jump and change direction randomly for 3s"
+        },
+        {
+          "mode": "coverage_target_unreachable",
+          "severity": "P3",
+          "recovery": "Stop at best achieved coverage and emit partial_exploration artifact"
+        }
+      ],
+      "max_steps": 200,
+      "timeout_ms": 120000,
+      "games_validated": ["witcher_3"],
+      "success_rate": 0.73,
+      "last_validated": "2026-03-15"
+    },
+    {
+      "skill_id": "follow_waypoint",
+      "name": "Follow Waypoint",
+      "category": "navigation",
+      "description": "Sets a waypoint on the map and follows the generated path or compass marker to reach the destination. Handles dynamic obstacles and path recalculation.",
+      "version": "1.2.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "waypoint_set", "description": "A waypoint or quest marker is active on the map" },
+        { "condition": "path_exists", "description": "A navigable path to the waypoint exists" }
+      ],
+      "termination": {
+        "success": [
+          "Player arrives within threshold distance of waypoint",
+          "Waypoint marker disappears or changes state",
+          "Destination location name appears on screen"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "compass_marker", "type": "screenshot_region", "description": "Compass or minimap directional marker to waypoint" },
+          { "name": "waypoint_distance", "type": "float", "description": "Distance to waypoint shown in UI" },
+          { "name": "terrain_ahead", "type": "screenshot_region", "description": "Terrain and obstacles in movement direction" }
+        ],
+        "memory": [
+          "waypoint_coordinates",
+          "path_history",
+          "obstacle_avoidance_log"
+        ],
+        "goal_params": {
+          "waypoint_label": "str",
+          "arrival_threshold_meters": "float"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "player.position = waypoint_coordinates (approximately)"
+        ],
+        "artifacts": [
+          "waypoint_log: {label, start_distance, steps_taken, outcome}",
+          "flag: arrived | timed_out | path_blocked"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "path_blocked_by_obstacle",
+          "severity": "P2",
+          "recovery": "Reroute around obstacle; if stuck 3 times, emit path_blocked flag"
+        },
+        {
+          "mode": "waypoint_moved",
+          "severity": "P2",
+          "recovery": "Re-read waypoint position from map and update target"
+        },
+        {
+          "mode": "combat_interruption",
+          "severity": "P2",
+          "recovery": "Resolve combat or flee then re-engage waypoint following"
+        },
+        {
+          "mode": "fell_off_ledge",
+          "severity": "P1",
+          "recovery": "Recover position and recalculate path from new location"
+        },
+        {
+          "mode": "waypoint_disappeared",
+          "severity": "P1",
+          "recovery": "Emit waypoint_lost flag and pause for task planner to reassign"
+        }
+      ],
+      "max_steps": 150,
+      "timeout_ms": 90000,
+      "games_validated": ["witcher_3", "elden_ring", "stardew_valley"],
+      "success_rate": 0.88,
+      "last_validated": "2026-04-12"
+    },
+    {
+      "skill_id": "enter_building",
+      "name": "Enter Building",
+      "category": "navigation",
+      "description": "Navigates to a building entrance, triggers the door interaction, and confirms the interior zone has loaded. Handles locked doors and access requirements.",
+      "version": "1.0.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "building_in_range", "description": "Player is within interaction range of a building entrance" },
+        { "condition": "door_not_locked", "description": "Building is accessible (not locked or quest-gated)" }
+      ],
+      "termination": {
+        "success": [
+          "Loading transition or zone-change animation observed",
+          "Interior environment rendered on screen",
+          "New location name confirmed"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "door_interact_prompt", "type": "screenshot_region", "description": "On-screen interact prompt near door" },
+          { "name": "building_label", "type": "text", "description": "Building name if shown in world space" },
+          { "name": "door_state", "type": "text", "description": "Whether door appears open, closed, or locked" }
+        ],
+        "memory": [
+          "known_building_locations",
+          "door_interaction_keybind",
+          "previously_entered_buildings"
+        ],
+        "goal_params": {
+          "building_name": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "player.location = building_interior"
+        ],
+        "artifacts": [
+          "entry_log: {building_name, timestamp}",
+          "flag: entered_success | door_locked | zone_transition_failed"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "door_locked",
+          "severity": "P2",
+          "recovery": "Check for key in inventory or look for alternate entrance"
+        },
+        {
+          "mode": "interact_prompt_missing",
+          "severity": "P3",
+          "recovery": "Move closer and re-approach door from different angle"
+        },
+        {
+          "mode": "wrong_building_entered",
+          "severity": "P3",
+          "recovery": "Exit and re-check building label; re-navigate to correct building"
+        },
+        {
+          "mode": "zone_transition_failed",
+          "severity": "P1",
+          "recovery": "Retry transition; if repeated failure, escape to known state"
+        },
+        {
+          "mode": "quest_gate_blocking_entry",
+          "severity": "P2",
+          "recovery": "Emit quest_gate flag; pause for task planner to handle prerequisite"
+        }
+      ],
+      "max_steps": 20,
+      "timeout_ms": 15000,
+      "games_validated": ["witcher_3", "baldurs_gate_3", "stardew_valley"],
+      "success_rate": 0.91,
+      "last_validated": "2026-04-05"
+    },
+
+    {
+      "skill_id": "equip_weapon",
+      "name": "Equip Weapon",
+      "category": "inventory",
+      "description": "Opens the equipment or inventory screen, locates a specified weapon, and equips it to the appropriate slot. Handles slot conflicts and confirmation dialogs.",
+      "version": "1.3.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "weapon_in_inventory", "description": "Target weapon exists in player inventory" },
+        { "condition": "not_in_active_combat", "description": "Player is not in the middle of an attack animation" }
+      ],
+      "termination": {
+        "success": [
+          "Weapon icon appears in equipment slot UI",
+          "Player character model shows new weapon",
+          "Equipment stats panel updates to reflect new weapon"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "inventory_panel", "type": "screenshot_region", "description": "Current inventory screen showing items" },
+          { "name": "equipment_slots", "type": "screenshot_region", "description": "Equipment slot panel showing current gear" },
+          { "name": "item_stats_popup", "type": "text", "description": "Stat comparison popup when hovering over item" }
+        ],
+        "memory": [
+          "weapon_slot_layout",
+          "previously_equipped_weapon",
+          "inventory_sort_state"
+        ],
+        "goal_params": {
+          "weapon_name": "str",
+          "slot": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "player.equipment[slot] = weapon_name",
+          "player.stats += weapon_stat_delta"
+        ],
+        "artifacts": [
+          "equip_log: {weapon, slot, replaced_weapon, timestamp}",
+          "flag: equip_success | equip_failed | slot_conflict_resolved"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "weapon_not_found_in_inventory",
+          "severity": "P2",
+          "recovery": "Scroll inventory and retry search; if missing, emit item_not_found flag"
+        },
+        {
+          "mode": "slot_already_occupied",
+          "severity": "P3",
+          "recovery": "Unequip current item first then re-equip target weapon"
+        },
+        {
+          "mode": "stat_requirement_not_met",
+          "severity": "P2",
+          "recovery": "Abort and emit requirement_not_met flag with required stats"
+        },
+        {
+          "mode": "confirmation_dialog_unexpected",
+          "severity": "P3",
+          "recovery": "Read dialog text and confirm if safe; reject if destructive action detected"
+        },
+        {
+          "mode": "inventory_ui_closed_unexpectedly",
+          "severity": "P1",
+          "recovery": "Re-open inventory and retry from item search step"
+        }
+      ],
+      "max_steps": 20,
+      "timeout_ms": 8000,
+      "games_validated": ["elden_ring", "witcher_3", "baldurs_gate_3"],
+      "success_rate": 0.93,
+      "last_validated": "2026-04-18"
+    },
+    {
+      "skill_id": "drop_item",
+      "name": "Drop Item",
+      "category": "inventory",
+      "description": "Removes a specified item from the player inventory by dropping it into the game world or discarding it via the inventory UI.",
+      "version": "1.0.1",
+      "status": "active",
+      "preconditions": [
+        { "condition": "item_in_inventory", "description": "Target item exists in inventory" },
+        { "condition": "inventory_open_or_openable", "description": "Inventory screen can be accessed" }
+      ],
+      "termination": {
+        "success": [
+          "Item removed from inventory list",
+          "Drop confirmation observed (item on ground or discard animation)"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "inventory_panel", "type": "screenshot_region", "description": "Current inventory contents" },
+          { "name": "item_quantity", "type": "integer", "description": "Stack size of the item to be dropped" }
+        ],
+        "memory": [
+          "items_marked_as_safe_to_drop",
+          "inventory_layout"
+        ],
+        "goal_params": {
+          "item_name": "str",
+          "quantity": "int",
+          "discard_vs_drop": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "inventory[item_name] -= quantity"
+        ],
+        "artifacts": [
+          "drop_log: {item, quantity, method, timestamp}",
+          "flag: drop_success | drop_failed | item_not_droppable"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "item_not_droppable",
+          "severity": "P3",
+          "recovery": "Log non-droppable item and skip; try next lowest-value item"
+        },
+        {
+          "mode": "confirmation_dialog_not_handled",
+          "severity": "P2",
+          "recovery": "Read dialog and confirm drop; reject if wording indicates permanent loss of key item"
+        },
+        {
+          "mode": "item_equipped_cannot_drop",
+          "severity": "P2",
+          "recovery": "Unequip item first then retry drop"
+        },
+        {
+          "mode": "quest_item_flagged",
+          "severity": "P1",
+          "recovery": "Abort drop immediately and emit quest_item_protected flag"
+        },
+        {
+          "mode": "inventory_closed_during_drop",
+          "severity": "P2",
+          "recovery": "Reopen inventory and retry"
+        }
+      ],
+      "max_steps": 12,
+      "timeout_ms": 5000,
+      "games_validated": ["elden_ring", "witcher_3", "stardew_valley"],
+      "success_rate": 0.90,
+      "last_validated": "2026-04-10"
+    },
+    {
+      "skill_id": "inspect_item",
+      "name": "Inspect Item",
+      "category": "inventory",
+      "description": "Opens an item's detail view in the inventory to read its full stats, description, lore, and metadata. Returns structured item data for downstream decisions.",
+      "version": "1.1.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "inventory_open", "description": "Inventory screen is currently open" },
+        { "condition": "item_in_inventory", "description": "Target item is present in inventory" }
+      ],
+      "termination": {
+        "success": [
+          "Item detail panel fully rendered",
+          "All stat fields parsed successfully"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "inventory_panel", "type": "screenshot_region", "description": "Inventory panel with item list" },
+          { "name": "item_detail_panel", "type": "screenshot_region", "description": "Detail/info panel on item hover or select" }
+        ],
+        "memory": [
+          "previously_inspected_items",
+          "inspect_keybind"
+        ],
+        "goal_params": {
+          "item_name": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [],
+        "artifacts": [
+          "item_data: {name, type, stats, rarity, description, value}",
+          "flag: inspect_success | item_not_found | detail_parse_failed"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "detail_panel_not_rendered",
+          "severity": "P3",
+          "recovery": "Hover over item again and wait 300ms; retry up to 3 times"
+        },
+        {
+          "mode": "ocr_parse_failed_on_stats",
+          "severity": "P2",
+          "recovery": "Zoom screenshot region and retry OCR"
+        },
+        {
+          "mode": "item_not_found_in_inventory",
+          "severity": "P2",
+          "recovery": "Scroll inventory and research; emit not_found if absent"
+        },
+        {
+          "mode": "multiple_items_with_same_name",
+          "severity": "P3",
+          "recovery": "Read all instances and return list; flag ambiguity"
+        },
+        {
+          "mode": "inspect_key_not_working",
+          "severity": "P2",
+          "recovery": "Try right-click context menu to find inspect option"
+        }
+      ],
+      "max_steps": 10,
+      "timeout_ms": 4000,
+      "games_validated": ["elden_ring", "witcher_3", "baldurs_gate_3", "stardew_valley"],
+      "success_rate": 0.95,
+      "last_validated": "2026-04-20"
+    },
+    {
+      "skill_id": "use_consumable",
+      "name": "Use Consumable",
+      "category": "inventory",
+      "description": "Activates a consumable item (health potion, buff food, scroll) from the inventory or quick-use slot. Handles cooldown checks and effect confirmation.",
+      "version": "1.4.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "consumable_in_inventory_or_quickslot", "description": "Target consumable is available" },
+        { "condition": "consumable_not_on_cooldown", "description": "No active cooldown on the item type" }
+      ],
+      "termination": {
+        "success": [
+          "Consumable use animation plays",
+          "Item quantity decreases by 1",
+          "Target stat (HP/mana/buff) changes as expected"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "quickslot_bar", "type": "screenshot_region", "description": "Quick-use item slots on HUD" },
+          { "name": "player_hp_bar", "type": "float", "description": "Current HP percentage" },
+          { "name": "buff_status_panel", "type": "screenshot_region", "description": "Active buffs/debuffs panel" }
+        ],
+        "memory": [
+          "consumable_keybind_map",
+          "consumable_cooldown_tracker",
+          "preferred_heal_threshold"
+        ],
+        "goal_params": {
+          "consumable_name": "str",
+          "use_condition": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "inventory[consumable_name] -= 1",
+          "player.hp += heal_amount (or buff applied)"
+        ],
+        "artifacts": [
+          "consumable_log: {item, effect, hp_before, hp_after, timestamp}",
+          "flag: consumed_success | on_cooldown | not_available"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "item_on_cooldown",
+          "severity": "P3",
+          "recovery": "Wait for cooldown or use alternate consumable type"
+        },
+        {
+          "mode": "item_not_in_quickslot",
+          "severity": "P2",
+          "recovery": "Open inventory, assign item to quickslot, then use"
+        },
+        {
+          "mode": "item_quantity_zero",
+          "severity": "P2",
+          "recovery": "Emit out_of_consumables flag; switch to alternate or buy more"
+        },
+        {
+          "mode": "use_animation_interrupted",
+          "severity": "P2",
+          "recovery": "Re-attempt use if still needed; check if item was consumed despite interrupt"
+        },
+        {
+          "mode": "stat_unchanged_after_use",
+          "severity": "P2",
+          "recovery": "Verify HP was already at max or buff already active; log anomaly"
+        }
+      ],
+      "max_steps": 8,
+      "timeout_ms": 3000,
+      "games_validated": ["elden_ring", "witcher_3", "hades", "baldurs_gate_3"],
+      "success_rate": 0.94,
+      "last_validated": "2026-04-22"
+    },
+    {
+      "skill_id": "sort_inventory",
+      "name": "Sort Inventory",
+      "category": "inventory",
+      "description": "Triggers the inventory auto-sort function or manually reorganises items by a given criterion (type, value, weight). Used to improve item-find speed in future skills.",
+      "version": "0.7.0",
+      "status": "candidate",
+      "preconditions": [
+        { "condition": "inventory_open", "description": "Inventory screen is visible" }
+      ],
+      "termination": {
+        "success": [
+          "Items visibly reordered in inventory grid",
+          "Sort criterion reflected in item layout"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "inventory_panel", "type": "screenshot_region", "description": "Inventory grid before sort" },
+          { "name": "sort_button", "type": "bounding_box", "description": "Sort/auto-arrange button location if present" }
+        ],
+        "memory": [
+          "sort_button_location",
+          "available_sort_options"
+        ],
+        "goal_params": {
+          "sort_by": "str",
+          "sort_order": "str"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "inventory.order = new_sort_order"
+        ],
+        "artifacts": [
+          "sort_log: {criterion, order, timestamp}",
+          "flag: sort_success | sort_not_available | manual_sort_required"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "no_sort_button_found",
+          "severity": "P3",
+          "recovery": "Attempt manual sort by dragging high-value items; emit no_auto_sort flag"
+        },
+        {
+          "mode": "sort_order_unchanged",
+          "severity": "P3",
+          "recovery": "Retry sort click; verify inventory actually changed"
+        },
+        {
+          "mode": "inventory_closed_during_sort",
+          "severity": "P2",
+          "recovery": "Reopen inventory and retry"
+        },
+        {
+          "mode": "multiple_sort_options_ambiguous",
+          "severity": "P3",
+          "recovery": "Use goal_params.sort_by to select correct option from dropdown"
+        },
+        {
+          "mode": "inventory_locked",
+          "severity": "P2",
+          "recovery": "Emit inventory_locked flag; do not modify order"
+        }
+      ],
+      "max_steps": 15,
+      "timeout_ms": 5000,
+      "games_validated": ["witcher_3"],
+      "success_rate": 0.80,
+      "last_validated": "2026-03-20"
+    },
+
+    {
+      "skill_id": "craft_item",
+      "name": "Craft Item",
+      "category": "crafting",
+      "description": "Opens the crafting interface, selects a target recipe, verifies materials are available, and executes the craft. Returns the crafted item and resource delta.",
+      "version": "1.1.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "crafting_station_accessible", "description": "A crafting bench, anvil, or crafting menu is available" },
+        { "condition": "recipe_known", "description": "The target recipe is unlocked in the player's recipe book" },
+        { "condition": "materials_available", "description": "All required materials are in inventory" }
+      ],
+      "termination": {
+        "success": [
+          "Crafting animation completes",
+          "Crafted item appears in inventory",
+          "Material quantities decrease as expected"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "crafting_ui_state", "type": "screenshot_region", "description": "Current crafting screen layout" },
+          { "name": "recipe_list", "type": "text_list", "description": "Available recipes visible in UI" },
+          { "name": "material_inventory", "type": "text_list", "description": "Current material quantities in inventory" }
+        ],
+        "memory": [
+          "known_recipes",
+          "crafting_station_type",
+          "last_crafted_item"
+        ],
+        "goal_params": {
+          "item_name": "str",
+          "quantity": "int"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "inventory[item_name] += quantity",
+          "inventory[materials] -= required_amounts"
+        ],
+        "artifacts": [
+          "craft_log: {item, quantity, materials_used, timestamp}",
+          "flag: craft_success | craft_failed | insufficient_materials"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "recipe_not_found",
+          "severity": "P2",
+          "recovery": "Scroll recipe list and search; if truly missing, emit recipe_not_known flag"
+        },
+        {
+          "mode": "insufficient_materials",
+          "severity": "P2",
+          "recovery": "Emit missing_materials list; trigger gather_material for each missing resource"
+        },
+        {
+          "mode": "wrong_crafting_station",
+          "severity": "P2",
+          "recovery": "Navigate to correct station type and retry"
+        },
+        {
+          "mode": "craft_animation_stuck",
+          "severity": "P1",
+          "recovery": "Wait 5s then escape; verify if item was created before retrying"
+        },
+        {
+          "mode": "quality_below_minimum",
+          "severity": "P3",
+          "recovery": "Log quality outcome; retry if quality is randomised and attempt budget remains"
+        }
+      ],
+      "max_steps": 25,
+      "timeout_ms": 12000,
+      "games_validated": ["stardew_valley", "witcher_3", "baldurs_gate_3"],
+      "success_rate": 0.88,
+      "last_validated": "2026-04-14"
+    },
+    {
+      "skill_id": "gather_material",
+      "name": "Gather Material",
+      "category": "crafting",
+      "description": "Locates and harvests a resource node (herb, ore, wood) in the game world. Handles navigation to the node, interaction, and collection of dropped materials.",
+      "version": "1.0.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "resource_node_in_range_or_on_map", "description": "Target resource is known to be nearby or shown on map" },
+        { "condition": "not_in_combat", "description": "Player is not currently in combat" }
+      ],
+      "termination": {
+        "success": [
+          "Gather animation completes",
+          "Material added to inventory",
+          "Resource node depleted or changes state"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "world_resource_markers", "type": "bounding_box_list", "description": "Resource icons on minimap or in world space" },
+          { "name": "interact_prompt", "type": "screenshot_region", "description": "Interaction prompt when near a resource node" },
+          { "name": "node_label", "type": "text", "description": "Name of the resource node if shown in world" }
+        ],
+        "memory": [
+          "known_resource_locations",
+          "resource_respawn_timers",
+          "gathered_materials_session"
+        ],
+        "goal_params": {
+          "material_name": "str",
+          "quantity_needed": "int"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "inventory[material_name] += gathered_amount"
+        ],
+        "artifacts": [
+          "gather_log: {material, quantity, node_location, timestamp}",
+          "flag: gather_success | node_depleted | node_not_found"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "resource_node_not_found",
+          "severity": "P2",
+          "recovery": "Expand search radius; check map for alternate node locations"
+        },
+        {
+          "mode": "node_already_depleted",
+          "severity": "P3",
+          "recovery": "Mark node as depleted with timestamp; seek next nearest node"
+        },
+        {
+          "mode": "combat_triggered_during_gather",
+          "severity": "P2",
+          "recovery": "Resolve or flee combat then return to gather"
+        },
+        {
+          "mode": "gather_animation_interrupted",
+          "severity": "P3",
+          "recovery": "Re-interact with node and retry; check if partial materials were collected"
+        },
+        {
+          "mode": "inventory_full",
+          "severity": "P2",
+          "recovery": "Trigger drop_item for lowest-value item then retry gather"
+        }
+      ],
+      "max_steps": 30,
+      "timeout_ms": 15000,
+      "games_validated": ["stardew_valley", "witcher_3"],
+      "success_rate": 0.86,
+      "last_validated": "2026-04-08"
+    },
+    {
+      "skill_id": "upgrade_equipment",
+      "name": "Upgrade Equipment",
+      "category": "crafting",
+      "description": "Uses a smithing, enhancement, or upgrade station to improve the stats or level of an equipped or inventoried item. Manages material cost and success probability.",
+      "version": "0.9.0",
+      "status": "candidate",
+      "preconditions": [
+        { "condition": "upgrade_station_accessible", "description": "A smith, upgrade bench, or relevant NPC is available" },
+        { "condition": "item_upgradeable", "description": "Target item has available upgrade path" },
+        { "condition": "upgrade_materials_available", "description": "Required upgrade materials are in inventory" }
+      ],
+      "termination": {
+        "success": [
+          "Upgrade animation completes",
+          "Item stats visibly increased in UI",
+          "Item name or tier indicator changes"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "upgrade_ui_state", "type": "screenshot_region", "description": "Current upgrade screen" },
+          { "name": "item_upgrade_path", "type": "text", "description": "Upgrade options and costs for the item" },
+          { "name": "success_chance_indicator", "type": "float", "description": "Upgrade success probability if shown" }
+        ],
+        "memory": [
+          "upgrade_station_location",
+          "item_upgrade_history",
+          "acceptable_success_threshold"
+        ],
+        "goal_params": {
+          "item_name": "str",
+          "target_level": "int",
+          "min_success_chance": "float"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "item.level += 1",
+          "item.stats += upgrade_delta",
+          "inventory[upgrade_materials] -= cost"
+        ],
+        "artifacts": [
+          "upgrade_log: {item, from_level, to_level, materials_used, outcome}",
+          "flag: upgrade_success | upgrade_failed | upgrade_aborted_low_chance"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "upgrade_failed_rng",
+          "severity": "P2",
+          "recovery": "Log failure; retry if materials allow and success chance is acceptable"
+        },
+        {
+          "mode": "materials_insufficient",
+          "severity": "P2",
+          "recovery": "Emit missing_materials list; trigger gather_material for each"
+        },
+        {
+          "mode": "item_at_max_level",
+          "severity": "P3",
+          "recovery": "Emit max_level flag; skip upgrade"
+        },
+        {
+          "mode": "success_chance_too_low",
+          "severity": "P3",
+          "recovery": "Abort if below min_success_chance threshold; log and await better conditions"
+        },
+        {
+          "mode": "item_destroyed_on_failure",
+          "severity": "P1",
+          "recovery": "Emit item_destroyed flag immediately; notify task planner for re-planning"
+        }
+      ],
+      "max_steps": 20,
+      "timeout_ms": 10000,
+      "games_validated": ["elden_ring"],
+      "success_rate": 0.74,
+      "last_validated": "2026-03-30"
+    },
+    {
+      "skill_id": "dismantle_item",
+      "name": "Dismantle Item",
+      "category": "crafting",
+      "description": "Breaks down an unwanted item into its component crafting materials using a dismantle, salvage, or deconstruct interface.",
+      "version": "1.0.0",
+      "status": "active",
+      "preconditions": [
+        { "condition": "dismantle_station_or_menu_accessible", "description": "Dismantling UI is reachable" },
+        { "condition": "item_in_inventory", "description": "Target item is in player inventory" },
+        { "condition": "item_dismantleable", "description": "Item type supports dismantling" }
+      ],
+      "termination": {
+        "success": [
+          "Item removed from inventory",
+          "Component materials added to inventory",
+          "Dismantle confirmation UI closes"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "dismantle_ui_state", "type": "screenshot_region", "description": "Dismantle/salvage screen" },
+          { "name": "yield_preview", "type": "text_list", "description": "Materials that will be yielded on dismantle" }
+        ],
+        "memory": [
+          "items_flagged_for_dismantle",
+          "dismantle_yield_history"
+        ],
+        "goal_params": {
+          "item_name": "str",
+          "confirm_if_yield_includes": "list[str]"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "inventory[item_name] -= 1",
+          "inventory[yielded_materials] += amounts"
+        ],
+        "artifacts": [
+          "dismantle_log: {item, yielded_materials, timestamp}",
+          "flag: dismantle_success | not_dismantleable | quest_item_blocked"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "item_not_dismantleable",
+          "severity": "P3",
+          "recovery": "Log item as non-dismantleable; try sell_item instead"
+        },
+        {
+          "mode": "quest_item_blocked",
+          "severity": "P1",
+          "recovery": "Abort immediately; emit quest_item_protected flag"
+        },
+        {
+          "mode": "unexpected_yield",
+          "severity": "P3",
+          "recovery": "Compare yield to expectation; log discrepancy for model update"
+        },
+        {
+          "mode": "dismantle_ui_not_found",
+          "severity": "P2",
+          "recovery": "Navigate to blacksmith or correct station type and retry"
+        },
+        {
+          "mode": "inventory_full_after_dismantle",
+          "severity": "P2",
+          "recovery": "Drop lowest-value items to make space, then complete dismantle"
+        }
+      ],
+      "max_steps": 15,
+      "timeout_ms": 6000,
+      "games_validated": ["witcher_3", "baldurs_gate_3"],
+      "success_rate": 0.91,
+      "last_validated": "2026-04-05"
+    },
+    {
+      "skill_id": "combine_items",
+      "name": "Combine Items",
+      "category": "crafting",
+      "description": "Combines two or more inventory items according to a known recipe or by trial interaction, producing a new compound item. Used for alchemy, food, and puzzle-solving.",
+      "version": "0.8.0",
+      "status": "candidate",
+      "preconditions": [
+        { "condition": "all_components_in_inventory", "description": "All required component items are present" },
+        { "condition": "combination_station_accessible", "description": "An alchemy table, cooking fire, or relevant UI is open" }
+      ],
+      "termination": {
+        "success": [
+          "Combination animation completes",
+          "New combined item appears in inventory",
+          "Component items reduced or removed"
+        ]
+      },
+      "inputs": {
+        "observations": [
+          { "name": "combination_ui", "type": "screenshot_region", "description": "Combination/alchemy interface" },
+          { "name": "ingredient_slots", "type": "bounding_box_list", "description": "Ingredient slot positions in UI" },
+          { "name": "result_preview", "type": "screenshot_region", "description": "Preview of resulting item before confirming" }
+        ],
+        "memory": [
+          "known_combination_recipes",
+          "failed_combination_attempts",
+          "alchemy_table_layout"
+        ],
+        "goal_params": {
+          "result_item_name": "str",
+          "component_items": "list[str]"
+        }
+      },
+      "outputs": {
+        "state_changes": [
+          "inventory[component_items] -= used_amounts",
+          "inventory[result_item_name] += 1"
+        ],
+        "artifacts": [
+          "combine_log: {components, result, timestamp}",
+          "flag: combine_success | unknown_recipe | component_missing | wrong_result"
+        ]
+      },
+      "failure_modes": [
+        {
+          "mode": "unknown_recipe",
+          "severity": "P3",
+          "recovery": "Log attempted combination; emit recipe_unknown flag for learning pipeline"
+        },
+        {
+          "mode": "wrong_result_produced",
+          "severity": "P2",
+          "recovery": "Log actual result vs expected; update recipe memory and emit mismatch flag"
+        },
+        {
+          "mode": "ingredient_slot_not_accepting_item",
+          "severity": "P2",
+          "recovery": "Retry drag-and-drop to slot; try alternate slot assignment order"
+        },
+        {
+          "mode": "result_preview_empty",
+          "severity": "P3",
+          "recovery": "Do not confirm combination; abort and re-check recipe"
+        },
+        {
+          "mode": "component_consumed_on_failed_attempt",
+          "severity": "P1",
+          "recovery": "Log consumed components; emit material_loss flag; re-plan if needed"
+        }
+      ],
+      "max_steps": 20,
+      "timeout_ms": 8000,
+      "games_validated": ["witcher_3", "stardew_valley"],
+      "success_rate": 0.77,
+      "last_validated": "2026-03-25"
+    }
+  ]
+}
