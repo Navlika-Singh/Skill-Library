@@ -1,2 +1,63 @@
-# Skill-Library
-This github repo contains a skill-library for a progression bot for automated QA testing of game-play
+# ManaMind Skill Library
+
+A lightweight "skill retrieval" mechanism for a progression bot for QA testing of games.
+
+## Setup
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+(Optional) Configure GPU:
+
+```bash
+export CUDA_VISIBLE_DEVICES=0
+```
+
+## Running
+
+Run the provided script:
+
+```bash
+bash run.sh
+```
+
+Or run manually:
+
+```bash
+python main.py \
+  --json_path assets/skills.json \
+  --db_path assets/skills.db \
+  --top_categories 2 \
+  --top_skills 3 \
+  --task "The agent has low health and needs to buy a health potion"
+```
+
+## Example Tasks
+
+- The agent has low health and needs to buy a health potion  
+- The agent is fighting the final boss and has very low health  
+- The agent needs to buy something but has no money  
+
+## Arguments
+
+- `--task`: Task description  
+- `--json_path`: Path to skills JSON file  
+- `--db_path`: Path to SQLite database  
+- `--top_categories`: Number of categories to consider  
+- `--top_skills`: Number of skills to retrieve  
+
+## Project Structure
+
+```text
+Skill-Library/
+└── ManaMind/
+    ├── assets/
+    ├── module/
+    ├── buy_item.json
+    ├── main.py
+    ├── requirements.txt
+    └── run.sh
+```
